@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSV Colour Quest - Permainan Pendidikan Seni Visual</title>
+<script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
+<style>
+*{box-sizing:border-box;user-select:none;-webkit-user-select:none}
+body{margin:0;background:#17152f;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center}
+button{cursor:pointer;font-weight:bold;border:0;border-radius:12px;padding:12px 16px;transition:all 0.15s ease}
+button:active{transform:scale(0.95)}
+#app{max-width:900px;width:100%;padding:14px;margin:0 auto}
+header{text-align:center;padding:12px}
+h1{color:#ffe66d;margin:4px;font-size:clamp(25px,6vw,42px);text-shadow:0 2px 4px rgba(0,0,0,0.5)}
+.panel{background:#292650;border:2px solid #625ba0;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+button.primary{background:#ffcf4a;color:#292044}
+button.primary:hover{background:#ffe082}
+button.secondary{background:#514a80;color:white}
+button.secondary:hover{background:#635b9c}
+
+#instruction-banner{
+  background:#ffe66d;
+  color:#292044;
+  padding:10px 14px;
+  border-radius:12px;
+  font-weight:bold;
+  font-size:14px;
+  text-align:center;
+  margin-bottom:10px;
+  transition:all 0.3s ease;
+  border:2px solid #ffca45;
+}
+
+#world{height:410px;position:relative;overflow:hidden;border:4px solid #b7e87a;border-radius:18px;background:#72c76b;box-shadow:inset 0 0 20px rgba(0,0,0,0.2)}
+#world:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 39px,rgba(255,255,255,0.08) 40px),repeating-linear-gradient(90deg,transparent 0 39px,rgba(255,255,255,0.08) 40px)}
+
+.station{
+  position:absolute;
+  width:105px;
+  text-align:center;
+  padding:8px 4px;
+  background:#fff3bd;
+  color:#30254a;
+  border:3px solid #ccc;
+  border-radius:14px;
+  font-size:12px;
+  font-weight:bold;
+  opacity:0.6;
+  filter:grayscale(0.5);
+  transition:all 0.3s ease;
+  box-shadow:0 4px 8px rgba(0,0,0,0.2);
+}
+.station.active{opacity:1;filter:grayscale(0);border-color:#ffcf4a;animation:pulse-station 2s infinite alternate}
+.station.learned{border-color:#52b788;background:#d8f3dc;color:#1b4332}
+.station span{display:block;font-size:30px}
+
+@keyframes pulse-station{
+  0%{transform:scale(1)}
+  100%{transform:scale(1.03)}
+}
+
+/* Character Avatar Styles */
+#player{
+  position:absolute;
+  z-index:4;
+  left:20px;
+  top:180px;
+  width:55px;
+  height:55px;
+  transition:left .08s ease-out,top .08s ease-out;
+  filter:drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.player-avatar-img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+#elephant-container{position:absolute;z-index:3;left:72%;top:160px;text-align:center}
+#elephant{font-size:42px;filter:drop-shadow(0 4px 4px rgba(0,0,0,0.3))}
+#elephant small{display:block;background:#47356b;color:white;padding:3px 6px;border-radius:8px;font-size:11px;font-weight:bold;border:1px solid #7c67a9}
+
+/* Visual Marker for Elephant Call */
+.quest-marker{position:absolute;top:-28px;left:50%;transform:translateX(-50%);font-size:24px;animation:bounce 0.8s infinite alternate}
+@keyframes bounce{0%{transform:translate(-50%, 0)}100%{transform:translate(-50%, -10px)}}
+
+#dialog{position:absolute;z-index:10;inset:8% 5%;background:#fff8e5;color:#30254a;border:4px solid #ffca45;border-radius:18px;padding:22px;display:none;overflow:auto;box-shadow:0 12px 32px rgba(0,0,0,0.4)}
+#dialog h2{margin-top:0;color:#5a3e00;font-size:22px;display:flex;align-items:center;gap:8px}
+#dialog p{line-height:1.6;font-size:16px}
+
+#controls{display:grid;grid-template-columns:repeat(3,64px);gap:8px;justify-content:center;margin:16px 0}
+#controls button{font-size:24px;height:58px;display:flex;align-items:center;justify-content:center;padding:0}
+.stats{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:bold;font-size:16px}
+.answers{display:grid;gap:12px;margin-top:16px}
+.answers button{text-align:left;background:#413b70;color:white;border:2px solid #68609b;font-size:15px;padding:14px 18px;line-height:1.4}
+.answers button:hover:not(:disabled){border-color:#ffe66d;background:#4e4785}
+.answers button:disabled{opacity:0.95;cursor:not-allowed}
+.small{font-size:13.5px;color:#d4d0f0;text-align:center}
+.hidden{display:none!important}
+#feedback{min-height:28px;font-weight:bold;font-size:16px;margin-top:12px}
+.pulse{animation:pulse 1.5s infinite}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+
+/* Styling untuk Mini Canvas Mewarna */
+#coloring-task-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: #1f1c3d;
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px solid #514a80;
+  margin-top: 14px;
+}
+.color-palette {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.color-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.color-btn.selected {
+  transform: scale(1.25);
+  box-shadow: 0 0 10px rgba(255,255,255,0.8);
+  border-color: #ffe66d;
+}
+#paintCanvas {
+  background: #ffffff;
+  border-radius: 12px;
+  cursor: crosshair;
+  touch-action: none;
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+<div>🎨 🐘 🎮</div>
+<h1>PSV COLOUR QUEST</h1>
+<div>Akademi Warna • Misi Cikgu Hareez</div>
+</header>
+
+<!-- HOME SCREEN -->
+<section id="home" class="panel">
+<h2>🌈 Selamat datang ke Akademi Warna!</h2>
+<p>Bantu Cikgu Hareez meneroka akademi. Jumpa Sang Gajah untuk mendapatkan arahan misi rasmi, baca semua 6 stesen nota warna, dan buka cabaran 30 soalan!</p>
+<p>🕹️ <b>Komputer:</b> guna kekunci anak panah atau <b>WASD</b>.</p>
+<p>📱 <b>Telefon/Tablet:</b> guna butang arah di bawah peta.</p>
+<button class="primary pulse" style="width:100%;margin-top:12px;font-size:18px" onclick="startGame()">🚀 MULA PENGEMBARAAN</button>
+</section>
+
+<!-- EXPLORATION GAME SCREEN -->
+<section id="game" class="hidden">
+<div class="stats panel" style="margin-top:0">
+<span>❤️ Nyawa: <b id="lives">3</b></span>
+<span>⭐ Mata: <b id="score">0</b></span>
+<span>📚 Nota Dipelajari: <b id="notes">0/6</b></span>
+</div>
+
+<div id="instruction-banner">
+📣 Arahan: Arahkan Cikgu Hareez datang ke Sang Gajah (🐘) untuk mendapatkan arahan!
+</div>
+
+<div id="world">
+<div class="station" style="left:4%;top:8%" data-note="0" id="st-0"><span>🔴</span>Primer</div>
+<div class="station" style="left:38%;top:8%" data-note="1" id="st-1"><span>🟠</span>Sekunder</div>
+<div class="station" style="left:69%;top:8%" data-note="2" id="st-2"><span>🌈</span>Penggenap</div>
+<div class="station" style="left:4%;top:63%" data-note="3" id="st-3"><span>🔥</span>Warna Panas</div>
+<div class="station" style="left:38%;top:63%" data-note="4" id="st-4"><span>❄️</span>Warna Sejuk</div>
+<div class="station" style="left:69%;top:63%" data-note="5" id="st-5"><span>🎨</span>Ton & Harmoni</div>
+
+<div id="elephant-container">
+<div id="questMarker" class="quest-marker">❗</div>
+<div id="elephant">🐘</div>
+<small style="background:#47356b;color:white;padding:3px 6px;border-radius:8px;font-size:11px;font-weight:bold;border:1px solid #7c67a9;display:block">SANG GAJAH</small>
+</div>
+
+<!-- Updated Player Sprite with Custom Pixel Avatar & Fallback -->
+<div id="player">
+  <img src="Fusyu.PNG" class="player-avatar-img" alt="Cikgu Hareez" onerror="this.onerror=null; this.outerHTML='<svg viewBox=\'0 0 64 64\' width=\'52\' height=\'52\'><rect x=\'16\' y=\'10\' width=\'32\' height=\'16\' rx=\'4\' fill=\'#2b211b\'/><circle cx=\'32\' cy=\'26\' r=\'14\' fill=\'#f1c27d\'/><rect x=\'20\' y=\'20\' width=\'10\' height=\'8\' rx=\'2\' fill=\'none\' stroke=\'#111\' stroke-width=\'2\'/><rect x=\'34\' y=\'20\' width=\'10\' height=\'8\' rx=\'2\' fill=\'none\' stroke=\'#111\' stroke-width=\'2\'/><line x1=\'30\' y1=\'24\' x2=\'34\' y2=\'24\' stroke=\'#111\' stroke-width=\'2\'/><path d=\'M18 40 Q32 30 46 40 L50 62 L14 62 Z\' fill=\'#26262a\'/><path d=\'M24 40 Q32 34 40 40 L42 62 L22 62 Z\' fill=\'#0096c7\'/><path d=\'M24 40 Q32 34 40 40\' stroke=\'#ffb703\' stroke-width=\'2\' fill=\'none\'/></svg>';">
+</div>
+
+<div id="dialog">
+<h2 id="dialogTitle"></h2>
+<p id="dialogText"></p>
+<button class="primary" id="dialogBtn" onclick="closeDialog()">Faham, teruskan ➜</button>
+</div>
+</div>
+
+<div id="controls">
+<div></div><button class="secondary" aria-label="Atas" onclick="move(0,-22)">⬆️</button><div></div>
+<button class="secondary" aria-label="Kiri" onclick="move(-22,0)">⬅️</button>
+<button class="secondary" aria-label="Bawah" onclick="move(0,22)">⬇️</button>
+<button class="secondary" aria-label="Kanan" onclick="move(22,0)">➡️</button>
+</div>
+<p class="small" id="hintText">Pergi ke Sang Gajah dahulu untuk mengaktifkan stesen-stesen nota.</p>
+<button id="quizBtn" class="primary hidden pulse" style="width:100%;font-size:18px;margin-top:8px" onclick="startQuiz()">🚪 BUKA CABARAN WARNA</button>
+</section>
+
+<!-- QUIZ SCREEN -->
+<section id="quiz" class="panel hidden">
+<div class="stats"><span id="qCount">Soalan 1/30</span><span>❤️ <b id="qLives">3</b></span><span>⭐ <b id="qScore">0</b></span></div>
+<h2 id="question" style="margin-top:16px;color:#ffe66d;line-height:1.4"></h2>
+<div id="answers" class="answers"></div>
+<p id="feedback"></p>
+<button id="nextBtn" class="primary hidden" style="width:100%;font-size:16px;margin-top:10px" onclick="nextQuestion()">SOALAN SETERUSNYA ➜</button>
+</section>
+
+<!-- COLORING TASK SCREEN (MID-QUIZ EVENT) -->
+<section id="coloringTask" class="panel hidden" style="text-align:center;">
+<h2 style="color:#ffe66d;margin-top:0">🎨 UJIAN INTERAKTIF SANG GAJAH!</h2>
+<p id="coloringInstruction" style="font-size:15px;line-height:1.5">
+  Sang Gajah minta anda mewarnakan <b>Kelopak Bunga</b> mengikut gabungan <b>Warna Panas</b> (Merah, Jingga, Kuning) atau <b>Warna Sejuk</b>! Pilih warna di bawah dan sentuh/klik bahagian lukisan.
+</p>
+
+<div id="coloring-task-container">
+  <div class="color-palette" id="palette">
+    <!-- Palet Warna akan diisi oleh JS -->
+  </div>
+  <canvas id="paintCanvas" width="280" height="240"></canvas>
+</div>
+
+<p id="coloringFeedback" style="font-weight:bold;min-height:24px;margin-top:8px;color:#ffe66d"></p>
+<button id="submitColoringBtn" class="primary pulse" style="width:100%;font-size:16px;margin-top:8px" onclick="validateColoringTask()">HANTAR HASIL SENI KEPADA SANG GAJAH 🐘</button>
+</section>
+
+<!-- RESULTS SCREEN -->
+<section id="result" class="panel hidden" style="text-align:center">
+<h2>🏆 TAMAT MISI!</h2>
+<h1 id="finalScore" style="color:#ffe66d;font-size:48px;margin:12px 0"></h1>
+<p id="finalMessage" style="font-size:18px;line-height:1.6"></p>
+<button class="primary" style="font-size:18px;padding:14px 28px;margin-top:16px" onclick="resetGame()">🔁 Main Semula</button>
+</section>
+</div>
+
+<script>
+// --- AUDIO SYNTHESIZERS (Tone.js) ---
+let synth, polySynth;
+function initAudio() {
+  if (!synth) {
+    try {
+      synth = new Tone.Synth({ oscillator: { type: "sine" } }).toDestination();
+      polySynth = new Tone.PolySynth().toDestination();
+      Tone.start();
+    } catch(e) {}
+  }
+}
+
+function playSfx(type) {
+  try {
+    if (!synth) return;
+    if (type === 'step') synth.triggerAttackRelease("C3", "32n", undefined, 0.05);
+    else if (type === 'note') polySynth.triggerAttackRelease(["C4", "E4", "G4"], "8n");
+    else if (type === 'elephant') polySynth.triggerAttackRelease(["G3", "C4", "E4", "G4"], "6n");
+    else if (type === 'correct') polySynth.triggerAttackRelease(["E5", "G5", "C6"], "8n");
+    else if (type === 'wrong') polySynth.triggerAttackRelease(["C3", "F#2"], "4n");
+    else if (type === 'win') polySynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "2n");
+  } catch(e) {}
+}
+
+// --- GAME CONTENT ---
+const notes=[
+["Warna Primer","Dalam teori warna tradisional, warna primer ialah MERAH, KUNING dan BIRU. Warna ini menjadi asas campuran untuk menghasilkan warna lain."],
+["Warna Sekunder","Warna sekunder terhasil daripada campuran dua warna primer: merah + kuning = jingga; kuning + biru = hijau; merah + biru = ungu."],
+["Warna Penggenap","Dalam roda warna tradisional, pasangan warna penggenap terletak bertentangan: merah–hijau, biru–jingga dan kuning–ungu. Pasangan ini menghasilkan kontra yang ketara."],
+["Warna Panas","Merah, jingga dan kuning biasanya dikategorikan sebagai warna panas. Warna ini boleh memberikan kesan hangat, bertenaga dan menarik perhatian."],
+["Warna Sejuk","Biru dan hijau sering dikategorikan sebagai warna sejuk. Warna sejuk boleh memberikan kesan tenang, nyaman dan damai."],
+["Ton, Keamatan dan Harmoni","Ton menunjukkan nilai cerah atau gelap. Putih biasanya mencerahkan warna, manakala hitam menggelapkannya. Keamatan ialah kekuatan warna. Harmoni pula menghasilkan keserasian visual."]
+];
+
+const questions=[
+["Warna primer tradisional ialah?",["Merah, kuning, biru","Hijau, jingga, ungu","Merah, hijau, jingga","Biru, hijau, ungu"],0],
+["Merah dicampur kuning menghasilkan?",["Hijau","Jingga","Ungu","Biru"],1],
+["Kuning dicampur biru menghasilkan?",["Jingga","Ungu","Hijau","Merah"],2],
+["Merah dicampur biru menghasilkan?",["Jingga","Hijau","Kuning","Ungu"],3],
+["Yang manakah kumpulan warna sekunder?",["Jingga, hijau, ungu","Merah, kuning, biru","Merah, jingga, kuning","Biru, merah, hijau"],0],
+["Warna penggenap merah ialah?",["Jingga","Hijau","Kuning","Ungu"],1],
+["Warna penggenap biru ialah?",["Hijau","Ungu","Jingga","Merah"],2],
+["Warna penggenap kuning ialah?",["Merah","Jingga","Hijau","Ungu"],3],
+["Kumpulan warna panas ialah?",["Merah, jingga, kuning","Biru, hijau, ungu kebiruan","Biru dan hijau sahaja","Hitam, putih, kelabu"],0],
+["Kumpulan warna sejuk ialah?",["Merah dan jingga","Biru dan hijau","Kuning dan merah","Merah dan jingga"],1],
+["Warna penggenap bersebelahan biasanya menghasilkan…",["Kesan sama sahaja","Warna hilang","Kontra yang ketara","Warna menjadi putih"],2],
+["Warna berdekatan pada roda warna lazimnya menghasilkan…",["Kontra paling kuat","Warna tanpa hubungan","Warna neutral sahaja","Gabungan yang harmoni"],3],
+["Skema monokromatik menggunakan…",["Variasi satu keluarga warna","Semua warna primer sahaja","Warna penggenap sahaja","Warna tanpa ton"],0],
+["Ton warna merujuk kepada…",["Saiz objek","Nilai cerah atau gelap","Bentuk garisan","Jenis kertas"],1],
+["Menambahkan putih kepada warna biasanya menjadikannya…",["Lebih gelap","Warna penggenap","Lebih cerah","Hitam"],2],
+["Menambahkan hitam kepada warna biasanya menjadikannya…",["Lebih cerah","Putih","Kuning","Lebih gelap"],3],
+["Yang manakah warna neutral?",["Hitam, putih, kelabu","Merah, kuning, biru","Warna panas sahaja","Warna sekunder sahaja"],0],
+["Harmoni warna bermaksud…",["Warna tidak boleh digabungkan","Gabungan warna yang serasi","Semua warna hitam","Merah sahaja"],1],
+["Keamatan warna merujuk kepada…",["Saiz objek","Ton gelap sahaja","Kekuatan atau ketepuan warna","Jalinan sebenar"],2],
+["Campuran kelabu kepada warna lazimnya…",["Menjadikannya primer","Menukarkannya kepada penggenap","Menjadikannya putih","Mengurangkan keamatan"],3],
+["Merah dicampur putih menghasilkan…",["Merah jambu","Hijau muda","Jingga","Ungu gelap"],0],
+["Biru dicampur putih menghasilkan…",["Jingga","Biru muda","Hitam","Merah"],1],
+["Warna sesuai untuk suasana matahari terbenam yang hangat ialah…",["Biru dan hijau sahaja","Kelabu sahaja","Merah, jingga dan kuning","Biru muda sahaja"],2],
+["Warna tertier lazimnya terhasil daripada campuran…",["Hitam dan putih","Dua warna neutral","Dua warna penggenap","Warna primer dengan warna sekunder berdekatan"],3],
+["Fungsi roda warna ialah…",["Menunjukkan hubungan antara warna","Mengukur berat","Menentukan saiz kertas","Menunjukkan jalinan sahaja"],0],
+["Pasangan warna yang menghasilkan kontra jelas ialah…",["Biru dan biru muda","Merah dan hijau","Kelabu dan kelabu","Putih dan putih"],1],
+["Warna cerah boleh membantu objek…",["Tidak kelihatan","Sentiasa lebih kecil","Lebih menonjol","Kehilangan bentuk"],2],
+["Warna boleh menghasilkan penegasan dengan cara…",["Menghapuskan fokus","Menyamakan semua unsur","Menghilangkan perbezaan","Menarik perhatian ke bahagian tertentu"],3],
+["Pelbagai cerah dan gelap warna biru menunjukkan…",["Variasi ton","Semua warna primer","Warna penggenap sahaja","Warna neutral sahaja"],0],
+["Apakah yang perlu dipertimbangkan untuk warna poster?",["Pilih secara rawak","Mesej, harmoni dan kebolehbacaan","Warna sama untuk semua poster","Elakkan semua kontras"],1]
+];
+
+let hasTalkedToElephant = false;
+let elephantMidTaskDone = false;
+let learned=new Set(), x=20, y=180, score=0, lives=3, qi=0, answered=false, activeNote=-1;
+
+// --- COLORING TASK VARIABLES & LOGIC ---
+let selectedColor = '#ff4757';
+const paletteColors = ['#ff4757', '#ffa502', '#eccc68', '#2ed573', '#1e90ff', '#5352ed'];
+let regionsFilled = { center: false, petal1: false, petal2: false, petal3: false, petal4: false };
+
+function startGame(){
+  initAudio();
+  document.getElementById('home').classList.add('hidden');
+  document.getElementById('game').classList.remove('hidden');
+  draw();
+  checkCollision();
+}
+
+function initColoringTask() {
+  const paletteEl = document.getElementById('palette');
+  paletteEl.innerHTML = '';
+  paletteColors.forEach((col, idx) => {
+    const btn = document.createElement('div');
+    btn.className = `color-btn ${idx === 0 ? 'selected' : ''}`;
+    btn.style.backgroundColor = col;
+    btn.onclick = () => {
+      document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedColor = col;
+    };
+    paletteEl.appendChild(btn);
+  });
+
+  drawCanvasShape();
+}
+
+function drawCanvasShape() {
+  const canvas = document.getElementById('paintCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#292044';
+
+  const petals = [
+    { id: 'petal1', x: 140, y: 70, r: 35 },
+    { id: 'petal2', x: 195, y: 120, r: 35 },
+    { id: 'petal3', x: 140, y: 170, r: 35 },
+    { id: 'petal4', x: 85, y: 120, r: 35 }
+  ];
+
+  petals.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = regionsFilled[p.id] || '#f1f2f6';
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  ctx.beginPath();
+  ctx.arc(140, 120, 30, 0, Math.PI * 2);
+  ctx.fillStyle = regionsFilled['center'] || '#ffffff';
+  ctx.fill();
+  ctx.stroke();
+}
+
+function handlePaintClick(clientX, clientY) {
+  const canvas = document.getElementById('paintCanvas');
+  if(!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const cx = (clientX - rect.left) * scaleX;
+  const cy = (clientY - rect.top) * scaleY;
+
+  const dist = (x1, y1, x2, y2) => Math.sqrt((x1-x2)**2 + (y1-y2)**2);
+
+  if (dist(cx, cy, 140, 120) <= 30) {
+    regionsFilled['center'] = selectedColor;
+  } else if (dist(cx, cy, 140, 70) <= 35) {
+    regionsFilled['petal1'] = selectedColor;
+  } else if (dist(cx, cy, 195, 120) <= 35) {
+    regionsFilled['petal2'] = selectedColor;
+  } else if (dist(cx, cy, 140, 170) <= 35) {
+    regionsFilled['petal3'] = selectedColor;
+  } else if (dist(cx, cy, 85, 120) <= 35) {
+    regionsFilled['petal4'] = selectedColor;
+  }
+  
+  playSfx('step');
+  drawCanvasShape();
+}
+
+// Support mouse & touch events for canvas
+const canvasEl = document.getElementById('paintCanvas');
+if (canvasEl) {
+  canvasEl.addEventListener('click', (e) => handlePaintClick(e.clientX, e.clientY));
+  canvasEl.addEventListener('touchstart', (e) => {
+    if(e.touches.length > 0) {
+      handlePaintClick(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, {passive: true});
+}
+
+function validateColoringTask() {
+  const filledCount = Object.values(regionsFilled).filter(v => v !== false).length;
+  const fb = document.getElementById('coloringFeedback');
+  
+  if (filledCount < 5) {
+    fb.textContent = "⚠️ Sila warnakan KESEMUA bahagian bunga terlebih dahulu!";
+    fb.style.color = "#ff758f";
+    playSfx('wrong');
+    return;
+  }
+
+  score += 30;
+  playSfx('correct');
+  fb.textContent = "🎉 SYABAS! Sang Gajah sangat kagum dengan hasil warna anda (+30 Mata Bonus)!";
+  fb.style.color = "#72c76b";
+  document.getElementById('submitColoringBtn').disabled = true;
+
+  setTimeout(() => {
+    document.getElementById('coloringTask').classList.add('hidden');
+    document.getElementById('quiz').classList.remove('hidden');
+    document.getElementById('submitColoringBtn').disabled = false;
+    qi++;
+    showQuestion();
+  }, 1800);
+}
+
+function draw(){
+  const p=document.getElementById('player');
+  if(p){
+    p.style.left=x+'px';
+    p.style.top=y+'px';
+  }
+}
+
+function move(dx,dy){
+  const dialog = document.getElementById('dialog');
+  if(dialog && dialog.style.display==='block') return;
+  
+  const w=document.getElementById('world');
+  if(!w) return;
+  x=Math.max(0,Math.min(w.clientWidth-45,x+dx));
+  y=Math.max(0,Math.min(w.clientHeight-45,y+dy));
+  
+  draw();
+  playSfx('step');
+  checkCollision();
+}
+
+document.addEventListener('keydown',e=>{
+  const modal = document.getElementById('dialog');
+  if (modal && modal.style.display === 'block') {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      closeDialog();
+    }
+    return;
+  }
+  
+  const k=e.key.toLowerCase();
+  const keysMap = {
+    arrowup: [0, -22], w: [0, -22],
+    arrowdown: [0, 22], s: [0, 22],
+    arrowleft: [-22, 0], a: [-22, 0],
+    arrowright: [22, 0], d: [22, 0]
+  };
+
+  if(keysMap[k]){
+    e.preventDefault();
+    move(...keysMap[k]);
+  }
+});
+
+function checkCollision(){
+  const worldEl = document.getElementById('world');
+  if(!worldEl) return;
+  const worldRect = worldEl.getBoundingClientRect();
+  const p = document.getElementById('player').getBoundingClientRect();
+  
+  const playerRel = {
+    left: p.left - worldRect.left,
+    right: p.right - worldRect.left,
+    top: p.top - worldRect.top,
+    bottom: p.bottom - worldRect.top
+  };
+
+  const elEle = document.getElementById('elephant-container').getBoundingClientRect();
+  const eleRel = {
+    left: elEle.left - worldRect.left,
+    right: elEle.right - worldRect.left,
+    top: elEle.top - worldRect.top,
+    bottom: elEle.bottom - worldRect.top
+  };
+
+  if(playerRel.left < eleRel.right && playerRel.right > eleRel.left &&
+     playerRel.top < eleRel.bottom && playerRel.bottom > eleRel.top && activeNote === -1){
+    
+    if(!hasTalkedToElephant) {
+      showDialog("🐘 Sang Gajah Berkata:", "Selamat datang Cikgu Hareez! Misi anda adalah meneroka 6 stesen warna (Primer, Sekunder, Penggenap, Warna Panas, Warna Sejuk, Ton & Harmoni). Buka semua nota di stesen tersebut sebelum menjawab Cabaran 30 Soalan!", -1);
+    } else {
+      showDialog("🐘 Sang Gajah Berkata:", "Teruskan usaha, Cikgu Hareez! Kumpul kesemua 6 nota stesen warna untuk membuka Cabaran 30 Soalan.", -3);
+    }
+    return;
+  }
+
+  if (!hasTalkedToElephant) return;
+
+  document.querySelectorAll('.station').forEach(el=>{
+    const r = el.getBoundingClientRect();
+    const stationRel = {
+      left: r.left - worldRect.left,
+      right: r.right - worldRect.left,
+      top: r.top - worldRect.top,
+      bottom: r.bottom - worldRect.top
+    };
+
+    if(playerRel.left < stationRel.right && playerRel.right > stationRel.left &&
+       playerRel.top < stationRel.bottom && playerRel.bottom > stationRel.top){
+      const n = +el.dataset.note;
+      if(!learned.has(n) && activeNote === -1) openNote(n);
+    }
+  });
+}
+
+function showDialog(title,text,n){
+  activeNote=n;
+  document.getElementById('dialogTitle').innerHTML=title;
+  document.getElementById('dialogText').textContent=text;
+  document.getElementById('dialog').style.display='block';
+  document.getElementById('dialogBtn').textContent= (n < 0 && n !== -1) ? 'Faham, Saya Pergi Sekarang ➜' : 'Faham, Teruskan Misi ➜';
+  
+  if(n === -1 || n === -2) playSfx('elephant');
+  else playSfx('note');
+}
+
+function openNote(n){ showDialog('📚 '+notes[n][0], notes[n][1], n); }
+
+function closeDialog(){
+  if(activeNote === -1 && !hasTalkedToElephant) {
+    hasTalkedToElephant = true;
+    const qm = document.getElementById('questMarker');
+    if(qm) {
+      qm.textContent = '✅';
+      qm.classList.remove('quest-marker');
+    }
+    document.getElementById('instruction-banner').innerHTML = '✨ Misi Bermula: Meneroka & kumpul kesemua 6 stesen nota warna!';
+    document.getElementById('instruction-banner').style.background = '#b7e87a';
+    document.getElementById('hintText').textContent = 'Bergerak ke setiap stesen. Nota akan muncul apabila Cikgu Hareez menghampirinya.';
+    
+    document.querySelectorAll('.station').forEach(el => el.classList.add('active'));
+  }
+
+  if(activeNote >= 0) {
+    learned.add(activeNote);
+    const stationEl = document.getElementById(`st-${activeNote}`);
+    if(stationEl) stationEl.classList.add('learned');
+  }
+
+  activeNote=-1;
+  document.getElementById('dialog').style.display='none';
+  document.getElementById('notes').textContent=learned.size+'/6';
+  
+  if(learned.size===6) {
+    document.getElementById('quizBtn').classList.remove('hidden');
+    document.getElementById('instruction-banner').innerHTML = '🎉 Tahniah! Kesemua 6 nota telah dikumpul. Tekan butang di bawah untuk membuka Cabaran Warna!';
+  }
+}
+
+// --- QUIZ SYSTEM ---
+function startQuiz(){
+  document.getElementById('game').classList.add('hidden');
+  document.getElementById('quiz').classList.remove('hidden');
+  showQuestion();
+}
+
+function showQuestion(){
+  answered=false;
+  document.getElementById('qCount').textContent=`Soalan ${qi+1}/30`;
+  document.getElementById('qLives').textContent=lives;
+  document.getElementById('qScore').textContent=score;
+  document.getElementById('question').textContent=questions[qi][0];
+  document.getElementById('feedback').textContent='';
+  document.getElementById('feedback').style.color='white';
+  document.getElementById('nextBtn').classList.add('hidden');
+  
+  const box=document.getElementById('answers');
+  box.innerHTML='';
+  
+  questions[qi][1].forEach((t,j)=>{
+    const b=document.createElement('button');
+    b.textContent='ABCD'[j]+'. '+t;
+    b.onclick=()=>answer(j,b);
+    box.appendChild(b);
+  });
+}
+
+function answer(j,b){
+  if(answered) return;
+  answered=true;
+  
+  const q=questions[qi];
+  const buttons=document.querySelectorAll('#answers button');
+  const feedback = document.getElementById('feedback');
+  
+  buttons.forEach((btn,k)=>{
+    btn.disabled=true;
+    if(k===q[2]){
+      btn.style.background='#26734d';
+      btn.style.borderColor='#52b788';
+    }
+  });
+
+  if(j===q[2]){
+    score+=10;
+    feedback.textContent='✅ BETUL! +10 mata.';
+    feedback.style.color='#72c76b';
+    playSfx('correct');
+  } else {
+    lives--;
+    b.style.background='#963e50';
+    b.style.borderColor='#e63946';
+    feedback.textContent='❌ BELUM TEPAT. Jawapan: '+q[1][q[2]];
+    feedback.style.color='#ff758f';
+    playSfx('wrong');
+  }
+
+  document.getElementById('qLives').textContent=lives;
+  document.getElementById('qScore').textContent=score;
+  
+  if(lives <= 0) {
+    setTimeout(finish, 1200);
+  } else {
+    document.getElementById('nextBtn').classList.remove('hidden');
+    if (qi === 14 && !elephantMidTaskDone) {
+      document.getElementById('nextBtn').textContent = '🐘 BERCAKAP DENGAN SANG GAJAH ➜';
+    } else {
+      document.getElementById('nextBtn').textContent = (qi===29) ? 'LIHAT KEPUTUSAN 🏆' : 'SOALAN SETERUSNYA ➜';
+    }
+  }
+}
+
+function nextQuestion(){
+  if(qi===29 || lives<=0){
+    finish();
+    return;
+  }
+
+  if (qi === 14 && !elephantMidTaskDone) {
+    elephantMidTaskDone = true;
+    document.getElementById('quiz').classList.add('hidden');
+    document.getElementById('coloringTask').classList.remove('hidden');
+    regionsFilled = { center: false, petal1: false, petal2: false, petal3: false, petal4: false };
+    document.getElementById('coloringFeedback').textContent = '';
+    initColoringTask();
+    playSfx('elephant');
+    return;
+  }
+
+  qi++;
+  showQuestion();
+}
+
+function finish(){
+  document.getElementById('quiz').classList.add('hidden');
+  document.getElementById('result').classList.remove('hidden');
+  document.getElementById('finalScore').textContent=score+' MATA';
+  
+  const messageEl = document.getElementById('finalMessage');
+  const correctCount = Math.floor(score / 10);
+  
+  if (lives <= 0) {
+    messageEl.textContent = `Anda kehabisan nyawa! Anda berjaya mengumpul ${score} mata. Jangan putus asa, ulang kaji nota dan cuba lagi!`;
+    playSfx('wrong');
+  } else {
+    messageEl.textContent = `Syabas! Anda telah menamatkan tugasan ini dengan ${score} MATA! ${score>=250 ? 'Cemerlang! Cikgu Hareez sangat bangga dengan pencapaian anda! 🎉' : 'Teruskan latihan dan ulang kaji nota warna untuk keputusan lebih tinggi.'}`;
+    playSfx('win');
+  }
+}
+
+function resetGame(){
+  hasTalkedToElephant = false;
+  elephantMidTaskDone = false;
+  learned.clear();
+  x = 20; y = 180;
+  score = 0; lives = 3; qi = 0;
+  answered = false; activeNote = -1;
+  selectedColor = '#ff4757';
+  regionsFilled = { center: false, petal1: false, petal2: false, petal3: false, petal4: false };
+
+  document.getElementById('result').classList.add('hidden');
+  document.getElementById('coloringTask').classList.add('hidden');
+  document.getElementById('game').classList.remove('hidden');
+  
+  document.getElementById('notes').textContent = '0/6';
+  document.getElementById('lives').textContent = '3';
+  document.getElementById('score').textContent = '0';
+  document.getElementById('quizBtn').classList.add('hidden');
+  
+  const qm = document.getElementById('questMarker');
+  if(qm) {
+    qm.textContent = '❗';
+    qm.classList.add('quest-marker');
+  }
+  
+  document.getElementById('instruction-banner').style.background = '#ffe66d';
+  document.getElementById('instruction-banner').innerHTML = '📣 Arahan: Arahkan Cikgu Hareez datang ke Sang Gajah (🐘) untuk mendapatkan arahan!';
+  document.getElementById('hintText').textContent = 'Pergi ke Sang Gajah dahulu untuk mengaktifkan stesen-stesen nota.';
+  
+  document.querySelectorAll('.station').forEach(el => {
+    el.classList.remove('active', 'learned');
+  });
+
+  draw();
+  setTimeout(() => {
+    showDialog("🐘 Panggilan Sang Gajah!", "Arahkan Cikgu Hareez berjalan ke arah Sang Gajah (🐘) yang mempunyai tanda ❗ di sebelah kanan untuk menerima arahan misi rasmi!", -2);
+  }, 300);
+}
+</script>
